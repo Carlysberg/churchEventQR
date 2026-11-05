@@ -1,0 +1,9 @@
+node_modules/
+.env*
+!.env.example
+.vercel/
+
+# Private ticket codes
+data/
+qr-codes/
+supabase/seed.sql

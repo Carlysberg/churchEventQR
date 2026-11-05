@@ -1,0 +1,9 @@
+{
+  "name": "youth-dinner-tickets",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "qr": "node scripts/generate-qr.mjs"
+  }
+}

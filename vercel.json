@@ -1,0 +1,16 @@
+{
+  "outputDirectory": "public",
+  "rewrites": [
+    { "source": "/t/:token", "destination": "/scan.html" },
+    { "source": "/door", "destination": "/door.html" }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Robots-Tag", "value": "noindex" },
+        { "key": "Referrer-Policy", "value": "no-referrer" }
+      ]
+    }
+  ]
+}

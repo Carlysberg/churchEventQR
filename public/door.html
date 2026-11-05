@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Door check-in</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#120A05;color:#fff;font-family:Arial,Helvetica,sans-serif}
+.wrap{max-width:760px;margin:0 auto;padding:20px 16px}.eyebrow{color:#F7C531;font-size:13px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase}
+h1{margin:6px 0 16px}.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:16px}
+.stat{background:#22150B;border-radius:10px;padding:14px;text-align:center}.stat b{display:block;font-size:30px;color:#F7C531}
+form{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}label{flex:1 1 100%}
+input{flex:1 1 150px;min-width:0;min-height:46px;font-size:16px;padding:0 12px;border-radius:8px;border:1px solid #8A8178;background:#fff;color:#120A05}
+button{min-height:46px;padding:0 16px;font-size:15px;font-weight:700;border:0;border-radius:8px;background:#F7C531;color:#120A05;cursor:pointer}
+button.ghost{background:transparent;color:#F7C531;border:1px solid #F7C531}
+#msg{min-height:24px;font-weight:700;margin-bottom:8px}.scroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:14px}th,td{text-align:left;padding:9px 8px;border-bottom:1px solid #3A2A1B;white-space:nowrap}th{color:#F7C531}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow">Youth Dinner 2026</div>
+  <h1>Door check-in</h1>
+
+  <form id="login">
+    <label for="key">Door key</label>
+    <input id="key" type="password" autocomplete="current-password" required>
+    <button type="submit">Open</button>
+  </form>
+
+  <div id="app" hidden>
+    <div class="stats">
+      <div class="stat"><b id="n0">–</b>Not scanned</div>
+      <div class="stat"><b id="n1">–</b>Confirmed</div>
+      <div class="stat"><b id="n2">–</b>Seated</div>
+    </div>
+    <form id="lookup">
+      <label for="q">Ticket number</label>
+      <input id="q" inputmode="numeric" placeholder="e.g. 042" autocomplete="off">
+      <button type="submit">Record scan</button>
+      <button type="button" class="ghost" id="reset">Reset</button>
+    </form>
+    <div id="status-note" hidden></div>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>Ticket</th><th>Status</th><th>Scans</th><th>Confirmed</th><th>Seated</th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+  </div>
+  <div id="msg" role="status"></div>
+</div>
+<script>
+const $ = (id) => document.getElementById(id);
+let key = '';
+try { key = sessionStorage.getItem('doorKey') || ''; } catch {}
+let tickets = [];
+let timer;
+const stamp = (iso) => iso ? new Date(iso).toLocaleString('en-GB', { timeZone: 'Africa/Accra', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
+const statusOf = (t) => t.scans === 0 ? 'Not scanned' : t.scans === 1 ? 'Confirmed' : 'Seated';
+const say = (text) => { $('msg').textContent = text; };
+const number = () => { const v = $('q').value.trim(); return /^[0-9]+$/.test(v) ? v.padStart(3, '0') : v.toUpperCase(); };
+
+async function api(path, options = {}) {
+  const res = await fetch(path, { ...options, headers: { 'x-door-key': key, 'Content-Type': 'application/json' } });
+  if (res.status === 401) { signOut('That door key is not correct.'); throw new Error('unauthorized'); }
+  if (!res.ok) throw new Error(res.status);
+  return res.json();
+}
+function signOut(message) {
+  clearInterval(timer);
+  key = '';
+  try { sessionStorage.removeItem('doorKey'); } catch {}
+  $('app').hidden = true; $('login').hidden = false;
+  say(message);
+}
+function draw() {
+  const counts = { 'Not scanned': 0, Confirmed: 0, Seated: 0 };
+  tickets.forEach((t) => counts[statusOf(t)]++);
+  $('n0').textContent = counts['Not scanned']; $('n1').textContent = counts.Confirmed; $('n2').textContent = counts.Seated;
+  const q = $('q').value.trim();
+  $('rows').replaceChildren(...tickets.filter((t) => !q || t.ticket.includes(q)).map((t) => {
+    const tr = document.createElement('tr');
+    [t.ticket, statusOf(t), t.scans, stamp(t.confirmed_at), stamp(t.seated_at)].forEach((v) => {
+      const td = document.createElement('td'); td.textContent = v; tr.append(td);
+    });
+    return tr;
+  }));
+}
+async function load() {
+  try {
+    tickets = await api('/api/door/tickets');
+    $('login').hidden = true; $('app').hidden = false;
+    try { sessionStorage.setItem('doorKey', key); } catch {}
+    draw();
+  } catch (err) {
+    if (err.message !== 'unauthorized') say('Could not refresh. Check the connection.');
+  }
+}
+function start() { load(); clearInterval(timer); timer = setInterval(load, 15000); }
+
+$('login').addEventListener('submit', (e) => { e.preventDefault(); key = $('key').value; say(''); start(); });
+$('q').addEventListener('input', draw);
+$('lookup').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const ticket = number(); if (!ticket) return;
+  try {
+    const r = await api('/api/door/ticket', { method: 'POST', body: JSON.stringify({ ticket, action: 'scan' }) });
+    say(r.ok ? `Ticket ${r.ticket}: ${r.status} (scan ${r.scans})` : `No ticket ${ticket}`);
+    load();
+  } catch (err) { if (err.message !== 'unauthorized') say('Could not record. Try again.'); }
+});
+$('reset').addEventListener('click', async () => {
+  const ticket = number(); if (!ticket) return;
+  try {
+    const r = await api('/api/door/ticket', { method: 'POST', body: JSON.stringify({ ticket, action: 'reset' }) });
+    say(r.ok ? `Ticket ${ticket} reset` : `No ticket ${ticket}`);
+    load();
+  } catch (err) { if (err.message !== 'unauthorized') say('Could not reset. Try again.'); }
+});
+if (key) start();
+</script>
+</body>
+</html>
