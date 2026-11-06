@@ -12,7 +12,7 @@ create table if not exists public.tickets (
 );
 
 -- No direct table access. The publishable key is not a secret, so it can only call the functions
--- below. They run as their owner (security definer) and each one requires a ticket token or the door key.
+-- below. They run as their owner (security definer) and each one requires the door key.
 alter table public.tickets enable row level security;
 revoke all on public.tickets from public, anon, authenticated;
 
@@ -45,12 +45,13 @@ $$;
 revoke all on function private.require_door_key(text) from public, anon, authenticated;
 
 -- Removes the earlier versions of these functions, which had no door key argument.
+drop function if exists public.record_scan_by_token(text);
 drop function if exists public.record_scan_by_number(text);
 drop function if exists public.reset_ticket(text);
 drop function if exists public.list_tickets();
 
 -- A single UPDATE locks the row, so two scans at the same moment cannot both be CONFIRMED.
-create or replace function public.record_scan_by_token(p_token text)
+create or replace function public.record_scan_by_token(p_token text, p_door_key text)
 returns table (ticket text, status text, scans integer, scanned_at timestamptz)
 language sql
 security definer
@@ -61,7 +62,8 @@ as $$
          confirmed_at = coalesce(t.confirmed_at, now()),
          seated_at    = case when t.scans >= 1 then coalesce(t.seated_at, now()) else t.seated_at end,
          last_scan_at = now()
-   where t.token = p_token
+   where private.require_door_key(p_door_key)
+     and t.token = p_token
   returning t.ticket_no,
             case when t.scans = 1 then 'CONFIRMED' else 'SEATED' end,
             t.scans,
@@ -114,9 +116,9 @@ as $$
    order by t.ticket_no;
 $$;
 
-revoke all on function public.record_scan_by_token(text), public.record_scan_by_number(text, text),
+revoke all on function public.record_scan_by_token(text, text), public.record_scan_by_number(text, text),
                        public.reset_ticket(text, text), public.list_tickets(text)
   from public, anon, authenticated;
-grant execute on function public.record_scan_by_token(text), public.record_scan_by_number(text, text),
+grant execute on function public.record_scan_by_token(text, text), public.record_scan_by_number(text, text),
                           public.reset_ticket(text, text), public.list_tickets(text)
   to anon;

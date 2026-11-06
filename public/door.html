@@ -17,6 +17,17 @@ button.ghost{background:transparent;color:#F7C531;border:1px solid #F7C531}
 #msg{min-height:24px;font-weight:700;margin-bottom:8px}.scroll{overflow-x:auto}
 table{width:100%;border-collapse:collapse;font-size:14px}th,td{text-align:left;padding:9px 8px;border-bottom:1px solid #3A2A1B;white-space:nowrap}th{color:#F7C531}
 [hidden]{display:none!important}
+#open-scanner{width:100%;min-height:60px;font-size:20px;margin-bottom:16px}
+#scanner,#result{position:fixed;inset:0;display:flex;flex-direction:column}
+#scanner{z-index:10;background:#000}
+#video{flex:1;min-height:0;width:100%;object-fit:cover}
+.bar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;background:#120A05}
+#result{z-index:20;align-items:center;justify-content:center;text-align:center;padding:24px 16px;background:#120A05;color:#fff}
+#result.CONFIRMED{background:#0B6B3A}#result.SEATED{background:#F7C531;color:#120A05}#result.INVALID{background:#9B1C1C}
+#result-word{font-size:32px;margin:0 0 10px;line-height:1}#result.CONFIRMED #result-word,#result.SEATED #result-word,#result.INVALID #result-word{font-size:clamp(44px,14vw,84px)}
+#result-detail{font-size:20px;margin:4px 0}#result-meta{font-size:15px;margin:4px 0}
+.result-actions{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;margin-top:24px}
+.result-actions button{background:#fff;color:#120A05;min-width:130px}
 </style>
 </head>
 <body>
@@ -33,6 +44,7 @@ table{width:100%;border-collapse:collapse;font-size:14px}th,td{text-align:left;p
   <div id="msg" role="status"></div>
 
   <div id="app" hidden>
+    <button type="button" id="open-scanner">Scan ticket</button>
     <div class="stats">
       <div class="stat"><b id="n0">–</b>Not scanned</div>
       <div class="stat"><b id="n1">–</b>Confirmed</div>
@@ -52,6 +64,27 @@ table{width:100%;border-collapse:collapse;font-size:14px}th,td{text-align:left;p
     </div>
   </div>
 </div>
+
+<div id="scanner" hidden>
+  <video id="video" playsinline muted></video>
+  <div class="bar">
+    <span id="scan-hint" role="status"></span>
+    <button type="button" class="ghost" id="close-scanner">Close</button>
+  </div>
+</div>
+
+<div id="result" role="status" aria-live="assertive" hidden>
+  <h2 id="result-word"></h2>
+  <p id="result-detail"></p>
+  <p id="result-meta"></p>
+  <div class="result-actions" id="result-actions">
+    <button type="button" id="scan-next">Scan next</button>
+    <button type="button" id="retry" hidden>Try again</button>
+    <button type="button" id="done">Done</button>
+  </div>
+</div>
+
+<script src="/vendor/jsQR.js"></script>
 <script>
 const $ = (id) => document.getElementById(id);
 let key = '';
@@ -72,6 +105,8 @@ async function api(path, options = {}) {
 }
 function signOut(message) {
   clearInterval(timer);
+  $('result').hidden = true;
+  closeScanner();
   key = '';
   try { sessionStorage.removeItem('doorKey'); } catch {}
   $('app').hidden = true; $('login').hidden = false;
@@ -123,6 +158,95 @@ $('reset').addEventListener('click', async () => {
     load();
   } catch (err) { if (err.message !== 'unauthorized') say('Could not reset. Try again.'); }
 });
+
+// Camera scanner. This is the only way a QR scan gets recorded.
+const video = $('video');
+const canvas = document.createElement('canvas');
+const ctx = canvas.getContext('2d', { willReadFrequently: true });
+const MAX_FRAME = 960;
+const SAME_CODE_PAUSE = 4000; // Stops a ticket still in view being recorded again right after "Scan next".
+let stream = null;
+let scanTimer;
+let lastCode = '';
+let ignoreUntil = 0;
+
+async function openScanner() {
+  say('');
+  $('scan-hint').textContent = 'Starting camera…';
+  $('scanner').hidden = false;
+  try {
+    const opened = await navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } } });
+    if ($('scanner').hidden) { opened.getTracks().forEach((t) => t.stop()); return; }
+    stream = opened;
+    video.srcObject = stream;
+    await video.play();
+    $('scan-hint').textContent = 'Point the camera at the ticket QR code';
+    lookForCode();
+  } catch {
+    closeScanner();
+    say('Could not open the camera. Allow camera access for this site in your browser settings, then try again.');
+  }
+}
+function closeScanner() {
+  clearTimeout(scanTimer);
+  if (stream) stream.getTracks().forEach((t) => t.stop());
+  stream = null;
+  video.srcObject = null;
+  $('scanner').hidden = true;
+}
+function lookForCode() {
+  if (!stream) return;
+  if (video.readyState >= 2 && video.videoWidth) {
+    const scale = Math.min(1, MAX_FRAME / Math.max(video.videoWidth, video.videoHeight));
+    canvas.width = Math.round(video.videoWidth * scale);
+    canvas.height = Math.round(video.videoHeight * scale);
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const frame = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const code = jsQR(frame.data, frame.width, frame.height, { inversionAttempts: 'dontInvert' });
+    if (code?.data && !(code.data === lastCode && Date.now() < ignoreUntil)) {
+      lastCode = code.data;
+      checkCode(code.data);
+      return; // Nothing else is scanned until staff press "Scan next".
+    }
+  }
+  scanTimer = setTimeout(lookForCode, 120);
+}
+function tokenFrom(text) {
+  try { return new URL(text).pathname.match(/^\/t\/([A-Za-z0-9]{6,32})\/?$/)?.[1] ?? null; } catch { return null; }
+}
+function showResult(kind, word, detail = '', meta = '', canRetry = false) {
+  $('result').className = kind;
+  $('result-word').textContent = word;
+  $('result-detail').textContent = detail;
+  $('result-meta').textContent = meta;
+  $('retry').hidden = !canRetry;
+  $('result-actions').hidden = !kind && !canRetry;
+  $('result').hidden = false;
+}
+async function checkCode(text) {
+  const token = tokenFrom(text);
+  if (!token) return showResult('INVALID', 'INVALID', 'This code is not a Youth Dinner ticket.');
+  showResult('', 'Checking ticket…');
+  try {
+    const r = await api('/api/scan', { method: 'POST', body: JSON.stringify({ token }) });
+    if (!r.ok) return showResult('INVALID', 'INVALID', 'This code is not a Youth Dinner ticket.');
+    showResult(r.status, r.status, `Ticket ${r.ticket}`, `Scan ${r.scans} · ${stamp(r.at)}`);
+    load();
+  } catch (err) {
+    if (err.message !== 'unauthorized') showResult('', 'Could not check ticket', '', 'Check the connection and try again.', true);
+  }
+}
+$('open-scanner').addEventListener('click', openScanner);
+$('close-scanner').addEventListener('click', closeScanner);
+$('retry').addEventListener('click', () => checkCode(lastCode));
+$('done').addEventListener('click', () => { $('result').hidden = true; closeScanner(); });
+$('scan-next').addEventListener('click', () => {
+  $('result').hidden = true;
+  ignoreUntil = Date.now() + SAME_CODE_PAUSE;
+  if (stream) lookForCode(); else openScanner();
+});
+document.addEventListener('visibilitychange', () => { if (document.hidden) closeScanner(); });
+
 if (key) start();
 </script>
 </body>

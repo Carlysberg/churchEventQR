@@ -29,4 +29,5 @@ writeFileSync('qr-codes/print-sheet.html', `<!doctype html><meta charset="utf-8"
 
 const test = rows.length ? readFileSync('data/test-token.txt', 'utf8').trim() : '';
 writeFileSync('data/test-link.txt', `${base}/t/${test}\n`);
+writeFileSync('qr-codes/test-ticket.png', toPng(encode(`${base}/t/${test}`)));
 console.log(`Made ${rows.length} QR codes for ${base} in qr-codes/`);

@@ -1,7 +1,7 @@
 {
   "outputDirectory": "public",
   "rewrites": [
-    { "source": "/t/:token", "destination": "/scan.html" },
+    { "source": "/t/:token", "destination": "/api/location" },
     { "source": "/door", "destination": "/door.html" }
   ],
   "headers": [

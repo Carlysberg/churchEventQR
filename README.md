@@ -1,13 +1,15 @@
 # Youth Dinner ticket check-in
 
-The first scan of a ticket shows **CONFIRMED**. The second and every later scan show **SEATED**. Any other code shows **INVALID**.
+Door staff scan tickets with the camera on the door page. The first scan of a ticket shows **CONFIRMED**. The second and every later scan show **SEATED**. Any other code shows **INVALID**.
 
-Hosted on Vercel, with scans stored in Supabase. There are no packages to install.
+Scanning a ticket with anything else, such as a phone's camera app, opens the venue on Google Maps and records nothing.
+
+Hosted on Vercel, with scans stored in Supabase. There are no packages to install. The scanner uses [jsQR](https://github.com/cozmo/jsQR) (Apache-2.0), included in `public/vendor/`.
 
 | Page | Address | Who uses it |
 | --- | --- | --- |
-| Scan result | `/t/<ticket code>` | Opens when a ticket QR code is scanned |
-| Door check-in | `/door` | Door staff, with the door key: live counts, search, record a scan by number, reset a ticket |
+| Door check-in | `/door` | Door staff, with the door key: camera scanner, live counts, search, record a scan by number, reset a ticket |
+| Venue map | `/t/<ticket code>` | Anyone who scans a ticket outside the door page. Redirects to Google Maps |
 
 ## Set up
 
@@ -27,7 +29,7 @@ Hosted on Vercel, with scans stored in Supabase. There are no packages to instal
    - the project URL
    - the **publishable** key (starts with `sb_publishable_`)
 
-The publishable key can't read the tickets table. It can only call the functions in `schema.sql`, and those need either a ticket code or the door key.
+The publishable key can't read the tickets table. It can only call the functions in `schema.sql`, and those all need the door key.
 
 **Moving an existing project from the secret key:** run `supabase/schema.sql` again (not `seed.sql`, your tickets stay as they are), then do steps 3 and 4. Deploy the new code straight after, because the old code stops working once the schema changes.
 
@@ -52,14 +54,15 @@ To use a different address, such as your own domain, run `npm run qr -- https://
 
 ### 4. Test
 
-1. Open the link in `data/test-link.txt`. It should show CONFIRMED, then SEATED when you open it again. The TEST ticket isn't included in the door counts.
-2. Open `/door`, enter your door key, and confirm that it shows 100 tickets.
-3. To reuse the test link, enter `TEST` on the door page and press **Reset**.
-4. Print one real ticket and scan it with several phones. Then press **Reset** on the door page for that ticket number.
+1. Open `/door` on a phone, enter your door key, and confirm that it shows 100 tickets.
+2. Press **Scan ticket**, allow the camera, and scan `qr-codes/test-ticket.png` on another screen. It should show CONFIRMED, then SEATED when you press **Scan next** and scan it again. Wait about 4 seconds between scans of the same code. The TEST ticket isn't included in the door counts.
+3. To reuse the test code, enter `TEST` on the door page and press **Reset**.
+4. Scan the same code with a phone's normal camera app. It should open the venue on Google Maps and record nothing.
+5. Print one real ticket and scan it on the door page with each phone staff will use. Then press **Reset** for that ticket number.
 
 ## Good to know
 
-- **Any scan counts.** A guest scanning their own ticket uses up CONFIRMED. Refreshing the result page also counts as a scan. Door staff can reset a ticket.
-- **Link previews don't count.** A scan is recorded only when the page runs in a browser, so previews from chat apps don't use up a ticket.
+- **Only the door page records scans.** Guests scanning their own tickets, and link previews from chat apps, don't use up a ticket. Door staff can reset a ticket scanned by mistake.
+- **The scanner needs the camera and a connection.** If a phone's camera won't open, allow camera access for the site in the browser settings, or enter the ticket number and press **Record scan**.
 - **Keep the codes private.** `data/`, `qr-codes/` and `supabase/seed.sql` contain the ticket codes. They are listed in `.gitignore`, so keep them out of your repository.
 - **Supabase free plan.** Free projects can pause after a period of inactivity. Check that yours is active the day before the event.
