@@ -1,11 +1,12 @@
-// Usage: npm run qr -- https://your-domain.example
+// Usage: npm run qr
+// To use a different site address: npm run qr -- https://your-domain.example
 // Makes one QR code per ticket, plus a printable sheet, in qr-codes/.
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { encode, toPng, toSvg } from '../lib/qr.mjs';
 
-const base = (process.argv[2] || '').replace(/\/+$/, '');
+const base = (process.argv[2] || 'https://churcheventqr.vercel.app').replace(/\/+$/, '');
 if (!/^https:\/\/[^\s/]+$/.test(base)) {
-  console.error('Give your site address, for example: npm run qr -- https://youth-dinner-2026.vercel.app');
+  console.error('The site address must look like https://churcheventqr.vercel.app');
   process.exit(1);
 }
 const rows = readFileSync('data/tickets.csv', 'utf8').trim().split(/\r?\n/).slice(1).map((l) => l.split(','));

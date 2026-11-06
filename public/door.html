@@ -30,6 +30,8 @@ table{width:100%;border-collapse:collapse;font-size:14px}th,td{text-align:left;p
     <button type="submit">Open</button>
   </form>
 
+  <div id="msg" role="status"></div>
+
   <div id="app" hidden>
     <div class="stats">
       <div class="stat"><b id="n0">–</b>Not scanned</div>
@@ -42,7 +44,6 @@ table{width:100%;border-collapse:collapse;font-size:14px}th,td{text-align:left;p
       <button type="submit">Record scan</button>
       <button type="button" class="ghost" id="reset">Reset</button>
     </form>
-    <div id="status-note" hidden></div>
     <div class="scroll">
       <table>
         <thead><tr><th>Ticket</th><th>Status</th><th>Scans</th><th>Confirmed</th><th>Seated</th></tr></thead>
@@ -50,7 +51,6 @@ table{width:100%;border-collapse:collapse;font-size:14px}th,td{text-align:left;p
       </table>
     </div>
   </div>
-  <div id="msg" role="status"></div>
 </div>
 <script>
 const $ = (id) => document.getElementById(id);
@@ -58,6 +58,7 @@ let key = '';
 try { key = sessionStorage.getItem('doorKey') || ''; } catch {}
 let tickets = [];
 let timer;
+let refreshFailed = false;
 const stamp = (iso) => iso ? new Date(iso).toLocaleString('en-GB', { timeZone: 'Africa/Accra', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
 const statusOf = (t) => t.scans === 0 ? 'Not scanned' : t.scans === 1 ? 'Confirmed' : 'Seated';
 const say = (text) => { $('msg').textContent = text; };
@@ -95,8 +96,9 @@ async function load() {
     $('login').hidden = true; $('app').hidden = false;
     try { sessionStorage.setItem('doorKey', key); } catch {}
     draw();
+    if (refreshFailed) { refreshFailed = false; say(''); }
   } catch (err) {
-    if (err.message !== 'unauthorized') say('Could not refresh. Check the connection.');
+    if (err.message !== 'unauthorized') { refreshFailed = true; say('Could not refresh. Check the connection.'); }
   }
 }
 function start() { load(); clearInterval(timer); timer = setInterval(load, 15000); }
@@ -114,6 +116,7 @@ $('lookup').addEventListener('submit', async (e) => {
 });
 $('reset').addEventListener('click', async () => {
   const ticket = number(); if (!ticket) return;
+  if (!confirm(`Reset ticket ${ticket}? This erases its check-in.`)) return;
   try {
     const r = await api('/api/door/ticket', { method: 'POST', body: JSON.stringify({ ticket, action: 'reset' }) });
     say(r.ok ? `Ticket ${ticket} reset` : `No ticket ${ticket}`);

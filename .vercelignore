@@ -1,0 +1,5 @@
+# Keeps keys and ticket codes out of `vercel` uploads
+.env*
+data/
+qr-codes/
+supabase/seed.sql

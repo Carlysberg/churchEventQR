@@ -34,21 +34,21 @@ The publishable key can't read the tickets table. It can only call the functions
 ### 2. Vercel
 
 1. Upload this folder to a private GitHub repository and import it into Vercel, or run `vercel` from this folder.
-2. Name the project `youth-dinner-2026`. The supplied QR codes point to `https://youth-dinner-2026.vercel.app`.
+2. The site lives at `https://churcheventqr.vercel.app`, and the QR codes point there. Keep this Vercel project name.
 3. Add these environment variables (see `.env.example`), then redeploy:
    - `SUPABASE_URL`
    - `SUPABASE_PUBLISHABLE_KEY`
    - `DOOR_KEY`: the door key you saved in Supabase. If the two values differ, the door page says "Could not refresh. Check the connection." To change the key, update both.
 
-### 3. Check the address before printing
+### 3. Make the QR codes
 
-If your live address is not exactly `https://youth-dinner-2026.vercel.app`, for example because the name was taken or you use your own domain, remake the codes with Node 18 or newer:
+With Node 18 or newer, make the codes for `https://churcheventqr.vercel.app`. The ticket codes stay the same each time:
 
 ```bash
-npm run qr -- https://your-real-address
+npm run qr
 ```
 
-This replaces everything in `qr-codes/`. Decide on the final address before printing, because printed codes cannot be changed.
+To use a different address, such as your own domain, run `npm run qr -- https://your-real-address`. This replaces everything in `qr-codes/`. Decide on the final address before printing, because printed codes cannot be changed.
 
 ### 4. Test
 
