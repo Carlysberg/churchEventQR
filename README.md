@@ -55,7 +55,7 @@ To use a different address, such as your own domain, run `npm run qr -- https://
 ### 4. Test
 
 1. Open `/door` on a phone, enter your door key, and confirm that it shows 100 tickets.
-2. Press **Scan ticket**, allow the camera, and scan `qr-codes/test-ticket.png` on another screen. It should show CONFIRMED, then SEATED when you press **Scan next** and scan it again. Wait about 4 seconds between scans of the same code. The TEST ticket isn't included in the door counts.
+2. Press **Scan ticket**, allow the camera, and scan `qr-codes/test-ticket.png` on another screen. It should show CONFIRMED, then SEATED when you press **Scan next** and scan it again. Wait about 2 seconds between scans of the same code. The TEST ticket isn't included in the door counts.
 3. To reuse the test code, enter `TEST` on the door page and press **Reset**.
 4. Scan the same code with a phone's normal camera app. It should open the venue on Google Maps and record nothing.
 5. Print one real ticket and scan it on the door page with each phone staff will use. Then press **Reset** for that ticket number.

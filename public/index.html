@@ -7,17 +7,18 @@
 <title>Youth Dinner 2026</title>
 <style>
 *{box-sizing:border-box}
-body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;text-align:center;padding:24px 16px;background:#120A05;color:#fff;font-family:Arial,Helvetica,sans-serif}
-main{max-width:420px}
-.eyebrow{color:#F7C531;font-size:13px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase}
-h1{font-size:24px;line-height:1.25;margin:14px 0 28px}
-a{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:0 24px;font-size:16px;font-weight:700;border-radius:8px;background:#F7C531;color:#120A05;text-decoration:none}
+html,body{margin:0}
+body{min-height:100vh;min-height:100dvh;background:#0E0805;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:Arial,Helvetica,sans-serif}
+/* The poster fills a phone's width and shrinks on wider screens so the button stays in view. */
+main{width:min(100vw,calc((100vh - 88px)*.8));min-width:min(100vw,320px)}
+img{display:block;width:100%;height:auto}
+a{display:flex;align-items:center;justify-content:center;min-height:56px;margin:16px;font-size:18px;font-weight:700;color:#1A0E06;text-decoration:none;border-radius:14px;background:linear-gradient(#FFDB5C,#F4B81E)}
+a:focus-visible{outline:3px solid #fff;outline-offset:3px}
 </style>
 </head>
 <body>
 <main>
-  <div class="eyebrow">Youth Dinner 2026</div>
-  <h1>Ticket check-in</h1>
+  <img src="poster.webp" width="2160" height="2700" alt="St. Matthew's Parish Youth Council presents Youth Dinner 2026. Ticket GH₵ 150. A Night of Grace, Gratitude and Celebration. Dress code: Anything Decent! Side attraction: live band performance. On Monday 28th Dec. 2026, 8:00 PM to midnight. Venue: Kosayo Green Hotel, Effiduase, Ashanti Region. Enquiries, tickets and directions: Joseph 054 476 9855, Benjamin 0247500506, Diana 054 113 1901, Mark 0247201041.">
   <a href="/door">Open ticket scanner</a>
 </main>
 </body>

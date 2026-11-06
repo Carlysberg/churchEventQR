@@ -164,7 +164,7 @@ const video = $('video');
 const canvas = document.createElement('canvas');
 const ctx = canvas.getContext('2d', { willReadFrequently: true });
 const MAX_FRAME = 960;
-const SAME_CODE_PAUSE = 4000; // Stops a ticket still in view being recorded again right after "Scan next".
+const SAME_CODE_PAUSE = 2000; // Stops a ticket still in view being recorded again right after "Scan next".
 let stream = null;
 let scanTimer;
 let lastCode = '';
